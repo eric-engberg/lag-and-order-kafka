@@ -19,6 +19,9 @@ At the start of a session, ask the learner two things (don't assume):
 2. **What's the goal?** interview prep, real operational fluency, or both. This
    sets how hard you lean on the interview-style drills (`quiz-master`) and
    incident drills (`broker-breaker`).
+3. **Which track?** compose (lighter, fastest for fundamentals) or Kubernetes
+   (`k8s/`, if they'd rather practice kubectl too). Don't assume - some learners
+   only have one available.
 
 Then check `notes/` for prior sessions and re-ask anything they got wrong last
 time before introducing new material.

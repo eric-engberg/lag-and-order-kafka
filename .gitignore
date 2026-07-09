@@ -2,3 +2,6 @@
 *.log
 notes/*.md
 !notes/TEMPLATE.md
+
+# Personal, machine-specific agent instructions (not shared)
+CLAUDE.local.md
