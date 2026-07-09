@@ -41,6 +41,17 @@ watching leader election, and producing into a cluster that no longer meets
 
 Then open **[LAB_GUIDE.md](LAB_GUIDE.md)** and start with Episode 1.
 
+## Two ways to work through it
+
+- **Solo:** follow [LAB_GUIDE.md](LAB_GUIDE.md) top to bottom. Everything is a
+  copy-pasteable command; the scripts handle the fiddly parts.
+- **With an AI pair:** open this repo in Claude Code (or any agent that reads
+  `AGENTS.md` - Cursor, Windsurf, Codex, ...) and say *"be my Kafka
+  instructor, start Episode 1."* The agent acts as a Socratic instructor: it
+  explains the model, has you predict output before running, stages failure
+  drills for you to debug, and logs what you got wrong to `notes/`. The full
+  teaching contract is in **[AGENTS.md](AGENTS.md)**.
+
 ## Container runtime
 
 Rancher Desktop ships **both** `docker` and `nerdctl`, so "which binary exists"
