@@ -1,0 +1,140 @@
+# Single-broker Kafka (KRaft) on Kubernetes -- the k8s equivalent of
+# compose/single-broker.yml, for episodes 1-4.
+#
+#   kubectl apply -f k8s/single/kafka.yaml
+#   kubectl -n kafka-lab rollout status statefulset/kafka
+#   kubectl -n kafka-lab exec -it kafka-0 -- \
+#     /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+#   kubectl delete -f k8s/single/kafka.yaml     # tear down (deletes the PVC too via the ns)
+#
+# One node is both broker and controller, so replication factor is capped at 1
+# (same limitation as the single-broker compose stack).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka-lab
+---
+# Headless service: gives each pod a stable DNS name
+# (kafka-0.kafka-headless.kafka-lab.svc.cluster.local) that the broker
+# advertises to clients. publishNotReadyAddresses lets the controller quorum
+# resolve peers before pods pass their readiness probe.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: kafka-lab
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: kafka
+  ports:
+    - name: broker
+      port: 9092
+    - name: controller
+      port: 9093
+---
+# Regular service for clients that want a single bootstrap address.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: kafka-lab
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: broker
+      port: 9092
+      targetPort: 9092
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka-lab
+spec:
+  serviceName: kafka-headless
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: kafka
+          image: apache/kafka:3.9.0
+          ports:
+            - { containerPort: 9092, name: broker }
+            - { containerPort: 9093, name: controller }
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # Shared across every node in the cluster. Must be identical on all
+            # pods; storage is formatted with it on first boot.
+            - name: CLUSTER_ID
+              value: "wm_0PqlnScmygj4piNbOTA"
+            - name: KAFKA_PROCESS_ROLES
+              value: "broker,controller"
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://:9092,CONTROLLER://:9093"
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: "PLAINTEXT"
+            # One node => internal topics can only have replication factor 1.
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+              value: "0"
+            - name: KAFKA_LOG_DIRS
+              value: "/var/lib/kafka/data"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx512M -Xms512M"
+          # NODE_ID and the advertised address are derived from the pod's
+          # StatefulSet ordinal (kafka-0 -> node 0), then we hand off to the
+          # image's normal entrypoint.
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -e
+              ORDINAL="${HOSTNAME##*-}"
+              export KAFKA_NODE_ID="${ORDINAL}"
+              export KAFKA_CONTROLLER_QUORUM_VOTERS="0@kafka-0.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:9093"
+              export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://${HOSTNAME}.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:9092"
+              exec /__cacert_entrypoint.sh /etc/kafka/docker/run
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 12
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

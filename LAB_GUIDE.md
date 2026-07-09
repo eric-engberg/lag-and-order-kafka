@@ -3,6 +3,16 @@
 All CLI tools live inside the container at `/opt/kafka/bin`, so every command
 runs via `docker exec`. Inside the container, always use `--bootstrap-server localhost:9092`.
 
+> **On Kubernetes instead of compose?** The same episodes run on a raw-manifest
+> k8s stack - see [k8s/README.md](k8s/README.md). Swap `docker exec kafka ...`
+> for `kubectl -n kafka-lab exec kafka-0 -- ...`; everything after the Kafka CLI
+> tool name is identical. The failure drills differ slightly (delete a pod vs.
+> scale the StatefulSet) - that section explains how.
+>
+> **Tip:** the `scripts/` helpers wrap the compose commands and pick
+> docker/nerdctl for you: `./scripts/up.sh single`, then
+> `./scripts/k.sh kafka kafka-topics.sh --bootstrap-server localhost:9092 --list`.
+
 Tip: make a shell alias so the commands below get shorter:
 
     alias k='docker exec -it kafka /opt/kafka/bin'
