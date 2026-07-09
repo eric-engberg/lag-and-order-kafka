@@ -14,5 +14,8 @@ containerd** backend. The `scripts/` helpers auto-detect the runtime, so use
 `./scripts/up.sh`, `./scripts/k.sh`, etc. rather than hardcoding `docker` or
 `nerdctl`. Set `RUNTIME=docker` to force Docker if you switch the backend.
 
-The owner also prefers running the lab on Rancher Desktop's built-in
-Kubernetes (see `k8s/`); the compose stacks are kept working and validated too.
+The owner does their **learning on the Kubernetes track** (see `k8s/`). After
+finishing a lesson on k8s, **validate that the equivalent compose stack still
+works** (a quick non-interactive `./scripts/up.sh`, run the lesson's commands,
+`./scripts/down.sh`) so both tracks stay honest. Report the result briefly;
+don't make the learner do it.
