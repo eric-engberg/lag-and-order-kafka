@@ -1,0 +1,56 @@
+# Three-broker Kafka cluster (KRaft) — for failure drills (day 6-7).
+# Lets you use replication factor 3, kill a broker, and watch leader election.
+# Start:  docker compose -f compose/cluster.yml up -d
+# Stop:   docker compose -f compose/cluster.yml down -v
+#
+# Broker ports on your host: kafka1=9092, kafka2=9094, kafka3=9096
+# Bootstrap from host: localhost:9092,localhost:9094,localhost:9096
+
+x-kafka-common: &kafka-common
+  image: apache/kafka:3.9.0
+  environment: &kafka-env
+    KAFKA_PROCESS_ROLES: broker,controller
+    KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+    KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:29093,2@kafka2:29093,3@kafka3:29093
+    KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+    KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+    KAFKA_MIN_INSYNC_REPLICAS: 2
+    KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+services:
+  kafka1:
+    <<: *kafka-common
+    container_name: kafka1
+    ports:
+      - "9092:9092"
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093,PLAINTEXT_HOST://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:29092,PLAINTEXT_HOST://localhost:9092
+
+  kafka2:
+    <<: *kafka-common
+    container_name: kafka2
+    ports:
+      - "9094:9094"
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093,PLAINTEXT_HOST://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:29092,PLAINTEXT_HOST://localhost:9094
+
+  kafka3:
+    <<: *kafka-common
+    container_name: kafka3
+    ports:
+      - "9096:9096"
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093,PLAINTEXT_HOST://:9096
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:29092,PLAINTEXT_HOST://localhost:9096
