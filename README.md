@@ -16,27 +16,41 @@ watching leader election, and producing into a cluster that no longer meets
 
 ## Prerequisites
 
-- A container runtime with compose support:
-  - **Docker Desktop** — use `docker compose ...` as written
-  - **Rancher Desktop / nerdctl** — substitute `nerdctl` for `docker`
-    everywhere (or `alias docker=nerdctl`); everything else is identical
+- A container runtime with compose support: **Docker Desktop** or
+  **Rancher Desktop** (either backend). The helper scripts auto-detect which
+  runtime is live, so you don't have to care which one you have. See
+  [Container runtime](#container-runtime) if you want to pin it.
+- Optionally, a local **Kubernetes** (Rancher Desktop's built-in k3s works) if
+  you want to run the lab on k8s instead of compose - see [k8s/](k8s/).
 - A terminal, curiosity, and a willingness to break things on purpose
 
 ## Quickstart
 
 ```bash
-# start the single-broker lab (Kafka 3.9, KRaft mode — no ZooKeeper)
-docker compose -f compose/single-broker.yml up -d
+# start the single-broker lab (Kafka 3.9, KRaft mode — no ZooKeeper).
+# up.sh picks docker or nerdctl automatically and waits until the broker
+# is actually ready to accept traffic.
+./scripts/up.sh single
 
-# confirm the broker answers (may take ~15s after startup)
-docker exec -it kafka /opt/kafka/bin/kafka-topics.sh \
-  --bootstrap-server localhost:9092 --list
+# confirm the broker answers (the script already waited, so this is instant)
+./scripts/k.sh kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
 
-# when you're done
-docker compose -f compose/single-broker.yml down -v
+# when you're done (removes volumes)
+./scripts/down.sh single
 ```
 
 Then open **[LAB_GUIDE.md](LAB_GUIDE.md)** and start with Episode 1.
+
+## Container runtime
+
+Rancher Desktop ships **both** `docker` and `nerdctl`, so "which binary exists"
+tells you nothing. The scripts probe which CLI is actually wired to a running
+engine and use that. Override it when you need to:
+
+```bash
+RUNTIME=docker  ./scripts/up.sh single   # force Docker
+RUNTIME=nerdctl ./scripts/up.sh single   # force nerdctl (containerd backend)
+```
 
 ## Repo layout
 
@@ -44,9 +58,15 @@ Then open **[LAB_GUIDE.md](LAB_GUIDE.md)** and start with Episode 1.
 .
 ├── README.md                  # you are here
 ├── LAB_GUIDE.md               # the exercises, in order
+├── scripts/                   # runtime-agnostic helpers (docker OR nerdctl)
+│   ├── lib.sh                 #   runtime detection, shared by the rest
+│   ├── up.sh / down.sh        #   start/stop a stack (single|cluster)
+│   ├── wait-for-kafka.sh      #   block until the broker accepts traffic
+│   └── k.sh                   #   run a Kafka CLI tool inside a container
 ├── compose/
 │   ├── single-broker.yml      # day-to-day learning environment
 │   └── cluster.yml            # 3-broker cluster for failure drills
+├── k8s/                       # the same lab on Kubernetes (raw manifests)
 └── notes/                     # session notes — the questions you got wrong
 ```
 
